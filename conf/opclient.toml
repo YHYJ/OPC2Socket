@@ -1,0 +1,26 @@
+sleep = 1
+
+[opc]
+opc_server_host = 'localhost'
+opc_server_port = 7766
+opc_server_name = 'OPC.Server.name'
+opc_get_way = 'iproperties'     # iproperties / iread
+opc_tag_list = [
+    'Group_1.Tag_1',
+]
+
+[udp]
+udp_client_host = '127.0.0.1'
+udp_client_port = 8090
+
+[log]
+    console = true                              # CHANGED: 是否要将log输出到STDOUT，只在调试时有用，正式部署时需要关闭
+    console_level = 'DEBUG'                     # 'DEBUG','INFO','WARNING','ERROR','CRITICAL'
+
+    file = true                                 # NOTE: 是否要将log输出到文件中
+    file_level = 'DEBUG'                        # 'DEBUG','INFO','WARNING','ERROR','CRITICAL'
+    log_file = 'logs/log.log'                   # NOTE: log文件存储路径
+    max_size = 10240000                         # NOTE: 单个log文件大小，单位KB
+
+    backup_count = 5                            # NOTE: 最大log文件数
+    format_string = '(%(asctime)s), %(levelname)s, <%(threadName)s>, %(module)s, %(funcName)s, [%(lineno)d]: %(message)s'
