@@ -37,6 +37,9 @@ class OPC2UDP(object):
         :conf: configuration, dict
 
         """
+        # sleep parameter
+        self.sleep = conf.get('sleep', 1)
+
         # OPC configuration
         opc_conf = conf.get('opc', dict())
         self.opc_server_host = opc_conf.get('opc_server_host', 'localhost')
@@ -46,14 +49,19 @@ class OPC2UDP(object):
         self.opc_tag_id = opc_conf.get('opc_tag_id', 2)
         self.opc_get_way = opc_conf.get('opc_get_way', 'iproperties')
 
+        # TCP or UDP
+        socket_conf = conf.get('socket', dict())
+        self.protocol = socket_conf.get('protocol', 'udp')
+        # TCP configuration
+        tcp_conf = socket_conf.get('tcp', dict())
+        self.tcp_host = tcp_conf.get('tcp_host', '127.0.0.1')
+        self.tcp_port = tcp_conf.get('tcp_port', 8090)
         # UDP configuration
-        udp_conf = conf.get('udp', dict())
-        self.udp_client_host = udp_conf.get('udp_client_host', '127.0.0.1')
-        self.udp_client_port = udp_conf.get('udp_client_port', 8090)
+        udp_conf = socket_conf.get('udp', dict())
+        self.udp_host = udp_conf.get('udp_host', '127.0.0.1')
+        self.udp_port = udp_conf.get('udp_port', 8090)
 
-        # sleep parameter
-        self.sleep = conf.get('sleep', 1)
-
+        # Init logger
         self.logger = setupLogging(conf['log'])
 
         # Create OPC Client
@@ -76,10 +84,24 @@ class OPC2UDP(object):
 
         self.logger.info('OPC client created successfully')
 
-    def _udp_client(self):
-        """Create UDP client"""
+    def _create_tcp(self):
+        """Create TCP connection"""
+        tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
+        tcp.bind((self.tcp_host, self.tcp_port))
+        tcp.listen(10)
+        self.logger.info('TCP connection created successfully')
+        self.logger.info('Server bind to ({}:{})'.format(
+            self.tcp_host, self.tcp_port))
+
+        return tcp
+
+    def _create_udp(self):
+        """Create UDP connection"""
         udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.logger.info('UDP client created successfully')
+        self.logger.info('UDP connection created successfully')
+        self.logger.info('Data send to ({}:{})'.format(self.udp_host,
+                                                       self.udp_port))
 
         return udp
 
@@ -159,19 +181,50 @@ class OPC2UDP(object):
 
         return datas
 
-    def udp_send(self):
-        """Send data via UDP"""
-        udp = self._udp_client()
-        while True:
-            data = self.get_data()
-            self.logger.info('Get data: {}'.format(data))
-            data_jsonb = json.dumps(data).encode('utf-8')
-            udp.sendto(data_jsonb,
-                       (self.udp_client_host, self.udp_client_port))
-            self.logger.info('Send data via UDP({}:{})'.format(
-                self.udp_client_host, self.udp_client_port))
-
-            time.sleep(self.sleep)
+    def main(self):
+        """Main"""
+        if self.protocol.lower() == 'tcp':
+            tcp = self._create_tcp()
+            while True:
+                # 获取OPC数据
+                data = self.get_data()
+                self.logger.info('Get data: {}'.format(data))
+                data_jsonb = json.dumps(data).encode('utf-8')
+                # 转发OPC数据
+                connect, client = tcp.accept()
+                connect.send(data_jsonb)
+                self.logger.info('Send data to ({})'.format(client))
+                # 延迟
+                time.sleep(self.sleep)
+        elif self.protocol.lower() == 'udp':
+            udp = self._create_udp()
+            while True:
+                # 获取OPC数据
+                data = self.get_data()
+                self.logger.info('Get data: {}'.format(data))
+                data_jsonb = json.dumps(data).encode('utf-8')
+                # 转发OPC数据
+                udp.sendto(data_jsonb, (self.udp_host, self.udp_port))
+                self.logger.info('Send data to ({}:{})'.format(
+                    self.udp_host, self.udp_port))
+                # 延迟
+                time.sleep(self.sleep)
+        else:
+            udp = self._create_udp()
+            self.logger.info(
+                'Unsupport {}, use the default protocol UDP'.format(
+                    self.protocol))
+            while True:
+                # 获取OPC数据
+                data = self.get_data()
+                self.logger.info('Get data: {}'.format(data))
+                data_jsonb = json.dumps(data).encode('utf-8')
+                # 转发OPC数据
+                udp.sendto(data_jsonb, (self.udp_host, self.udp_port))
+                self.logger.info('Send data to ({}:{})'.format(
+                    self.udp_host, self.udp_port))
+                # 延迟
+                time.sleep(self.sleep)
 
 
 if __name__ == "__main__":
@@ -237,4 +290,4 @@ if __name__ == "__main__":
         data = opc2udp.get_data()
         print('Get data: {}'.format(data))
     elif args.udp:  # -u, --udp
-        opc2udp.udp_send()
+        opc2udp.main()
