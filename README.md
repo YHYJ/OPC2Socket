@@ -153,6 +153,8 @@ opc -H localhost -s Matrikon.OPC.Simulation -r Random.Int4
 
 ## 打包成可执行文件
 
+> 如果需要程序脱离控制台运行，则在pyinstaller打包时在最后加一个`-w`参数即可
+
 ### Linux
 
 打包命令如下：
