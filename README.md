@@ -89,6 +89,8 @@ https://github.com/jokey2k/OpenOPC
     pip install pywin32
     ```
 
+    或下载[pywin32.exe](https://github.com/mhammond/pywin32/releases)进行安装
+
 ### 服务器环境
 
 以下列出的依赖包需要安装到OPC Server所在的系统
